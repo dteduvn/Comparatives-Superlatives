@@ -789,6 +789,7 @@ function listenChoose(i,j) {
   const opts = document.querySelectorAll('#lopts-'+i+' .qopt');
   const fb = document.getElementById('lfb-'+i);
   opts.forEach(o=>o.disabled=true);
+  recordResult('Listen & Learn', 'listen-'+i, j===ex.answer, ex.options[j], ex.options[ex.answer], ex.audio);
   if (j === ex.answer) {
     opts[j].classList.add('correct');
     fb.className='quiz-feedback ok';
@@ -811,7 +812,9 @@ function listenFillCheck(i) {
   const inp = document.getElementById('linp-'+i);
   const fb = document.getElementById('lfb-'+i);
   const val = inp.value.trim().toLowerCase().replace(/\./g,'');
-  if (val === ex.blank.toLowerCase()) {
+  const isCorrect = val === ex.blank.toLowerCase();
+  recordResult('Listen & Learn', 'listen-'+i, isCorrect, inp.value.trim(), ex.blank, ex.audio);
+  if (isCorrect) {
     inp.className='fill-input ok';
     fb.className='quiz-feedback ok';
     fb.textContent='✅ Correct! / Đúng rồi!';
@@ -938,6 +941,8 @@ function spellDelete() {
 function checkSpell() {
   const correct = spellEntered.join('').replace(/null/g,'') === spellTarget.replace(/ /g,'');
   const boxes = document.querySelectorAll('.l-box');
+  const w = spellList[spellIdx];
+  recordResult('Spell It', 'spell-'+w[0], correct, spellEntered.join('').replace(/null/g,''), spellTarget, 'Spell: '+w[0]);
   if (correct) {
     spellScore++;
     document.getElementById('spellScore').textContent=spellScore;
@@ -1009,7 +1014,9 @@ function matchClick(el) {
     else if(matchSel.dataset.type==='right'&&el.dataset.type==='left'){base=el;comp=matchSel;}
     if(base&&comp){
       const word=matchPairs[+base.dataset.idx];
-      if(word[1]===comp.dataset.val){
+      const isCorrect = word[1]===comp.dataset.val;
+      recordResult('Match Words', 'match-'+word[0], isCorrect, comp.dataset.val, word[1], 'Match: '+word[0]);
+      if(isCorrect){
         base.classList.remove('sel');base.classList.add('matched');comp.classList.add('matched');
         matchScore++;matchDone++;
         document.getElementById('matchScore').textContent=matchScore;
@@ -1075,7 +1082,9 @@ function checkFill(i) {
   if(inp.disabled) return;
   const val=inp.value.trim().toLowerCase().replace(/\./g,'');
   const ans=FILL_EX[i].answer.toLowerCase();
-  if(val===ans) {
+  const isCorrect = val===ans;
+  recordResult('Fill In', 'fill-'+i, isCorrect, inp.value.trim(), FILL_EX[i].answer, FILL_EX[i].sentence);
+  if(isCorrect) {
     inp.className='fill-input ok';inp.disabled=true;
     fb.className='quiz-feedback ok';fb.textContent='✅ Correct! / Đúng rồi!';fb.style.display='block';
     fillCorrect++;
@@ -1124,7 +1133,9 @@ function checkError(i) {
   if(inp.disabled) return;
   const val=inp.value.trim().toLowerCase().replace(/[.!?]/g,'');
   const ans=ERROR_EX[i].correct.toLowerCase().replace(/[.!?]/g,'');
-  if(val===ans) {
+  const isCorrect = val===ans;
+  recordResult('Error Correction', 'error-'+i, isCorrect, inp.value.trim(), ERROR_EX[i].correct, ERROR_EX[i].wrong);
+  if(isCorrect) {
     inp.className='correction-input ok';inp.disabled=true;
     fb.className='quiz-feedback ok';fb.innerHTML=`✅ Correct! <br><em>${ERROR_EX[i].explain}</em>`;fb.style.display='block';
     errorCorrect++;
@@ -1176,7 +1187,9 @@ function checkGuided(i,j) {
   if(inp.disabled) return;
   const val=inp.value.trim().toLowerCase();
   const ans=PIC_SENTENCES[i].answers[j].toLowerCase();
-  if(val===ans) {
+  const isCorrect = val===ans;
+  recordResult('Picture Writing', 'pic-'+i+'-'+j, isCorrect, inp.value.trim(), PIC_SENTENCES[i].answers[j], PIC_SENTENCES[i].sentences[j]);
+  if(isCorrect) {
     inp.className='fill-input ok';inp.disabled=true;
     fb.className='quiz-feedback ok';fb.textContent='✅ Correct!';fb.style.display='block';
     speak('Correct! Well done!');
@@ -1415,6 +1428,35 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderWords();
   fcInit();
 });
+
+// ===== SESSION RESULTS TRACKING =====
+const sessionResults = {
+  "Listen & Learn": { max: LISTEN_EX.length, items: {} },
+  "Spell It": { max: WORDS.length, items: {} },
+  "Match Words": { max: 5, items: {} },
+  "Fill In": { max: FILL_EX.length, items: {} },
+  "Error Correction": { max: ERROR_EX.length, items: {} },
+  "Picture Writing": { max: PIC_SENTENCES.reduce((s,p)=>s+p.sentences.length,0), items: {} },
+};
+function recordResult(section, key, correct, studentAnswer, correctAnswer, question) {
+  const sec = sessionResults[section];
+  if (sec.items[key]) return;
+  sec.items[key] = { question, correct, studentAnswer, correctAnswer };
+}
+function collectSessionSections() {
+  const sections = [];
+  for (const [name, data] of Object.entries(sessionResults)) {
+    const details = Object.values(data.items);
+    const score = details.filter(d => d.correct).length;
+    sections.push({ name, score, max: data.max, details });
+  }
+  return sections;
+}
+</script>
+<script src="tracker.js"></script>
+<script>
+DTTracker.ensureStudentName();
+DTTracker.showSubmitButton('comparatives_superlatives', 'Comparatives & Superlatives', collectSessionSections);
 </script>
 </body>
 </html>
